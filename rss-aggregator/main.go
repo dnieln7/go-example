@@ -1,13 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/dnieln7/go-examples/rss-aggregator/internal/database"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -19,6 +23,38 @@ func main() {
 		log.Fatal("PORT not found")
 	}
 
+	apiConfig := setUpDatabase()
+	router := setUpRouter()
+
+	router.Get("/timestamp", getTimestamp)
+	router.Post("/users", apiConfig.postUser)
+
+	log.Println("Starting server on port: ", port)
+	
+	http.ListenAndServe(":"+port, router)
+}
+
+func setUpDatabase() *ApiConfig {
+	dbUrl := os.Getenv("DB_URL")
+
+	if dbUrl == "" {
+		log.Fatal("DB_URL not found")
+	}
+
+	connection, err := sql.Open("postgres", dbUrl)
+
+	if err != nil {
+		log.Fatal("Could not connect to database")
+	}
+
+	queries := database.New(connection)
+
+	return &ApiConfig{
+		DB: queries,
+	}
+}
+
+func setUpRouter() *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(cors.Handler(cors.Options{
@@ -30,12 +66,9 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	router.Get("/home", home)
-
-	log.Println("Starting server on port: ", port)
-	http.ListenAndServe(":"+port, router)
+	return router
 }
 
-func home(writer http.ResponseWriter, request *http.Request) {
-	responseJson(writer, 200, struct{}{})
+type ApiConfig struct {
+	DB *database.Queries
 }
