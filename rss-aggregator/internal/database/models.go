@@ -11,9 +11,19 @@ import (
 	"github.com/google/uuid"
 )
 
+type TbFeed struct {
+	ID        uuid.UUID
+	Name      sql.NullString
+	Url       string
+	UserID    uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type TbUser struct {
 	ID        uuid.UUID
 	Name      sql.NullString
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	ApiKey    string
 }

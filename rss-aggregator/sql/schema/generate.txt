@@ -1,0 +1,2 @@
+goose postgres db_url up
+goose postgres db_url down

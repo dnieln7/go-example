@@ -28,6 +28,9 @@ func main() {
 
 	router.Get("/timestamp", getTimestamp)
 	router.Post("/users", apiConfig.postUser)
+	router.Get("/users", apiConfig.middlewareAuth(apiConfig.getUser))
+	router.Post("/feeds", apiConfig.middlewareAuth(apiConfig.postFeed))
+	router.Get("/feeds", apiConfig.getFeeds)
 
 	log.Println("Starting server on port: ", port)
 	

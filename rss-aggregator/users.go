@@ -16,6 +16,7 @@ type User struct {
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	ApiKey    string    `json:"api_key"`
 }
 
 func tbUsertoUser(tbUser database.TbUser) User {
@@ -24,19 +25,20 @@ func tbUsertoUser(tbUser database.TbUser) User {
 		Name:      tbUser.Name.String,
 		CreatedAt: tbUser.CreatedAt,
 		UpdatedAt: tbUser.UpdatedAt,
+		ApiKey:    tbUser.ApiKey,
 	}
 }
 
 type PostUserBody struct {
-	Name      string `json:"name"`
+	Name string `json:"name"`
 }
 
 func (apiConfig *ApiConfig) postUser(writer http.ResponseWriter, request *http.Request) {
 	decoder := json.NewDecoder(request.Body)
 
-	createUserBody := PostUserBody{}
+	body := PostUserBody{}
 
-	err := decoder.Decode(&createUserBody)
+	err := decoder.Decode(&body)
 
 	if err != nil {
 		message := fmt.Sprintf("Could not parse JSON: %v", err)
@@ -44,7 +46,7 @@ func (apiConfig *ApiConfig) postUser(writer http.ResponseWriter, request *http.R
 		return
 	}
 
-	if createUserBody.Name == "" {
+	if body.Name == "" {
 		responseError(writer, 400, "Name is empty")
 		return
 	}
@@ -52,7 +54,7 @@ func (apiConfig *ApiConfig) postUser(writer http.ResponseWriter, request *http.R
 	tbUser, err := apiConfig.DB.CreateUser(request.Context(), database.CreateUserParams{
 		ID: uuid.New(),
 		Name: sql.NullString{
-			String: createUserBody.Name,
+			String: body.Name,
 			Valid:  true,
 		},
 		CreatedAt: time.Now().UTC(),
@@ -66,4 +68,8 @@ func (apiConfig *ApiConfig) postUser(writer http.ResponseWriter, request *http.R
 	}
 
 	responseJson(writer, 201, tbUsertoUser(tbUser))
+}
+
+func (apiConfig *ApiConfig) getUser(writer http.ResponseWriter, request *http.Request, tbUser database.TbUser) {
+	responseJson(writer, 200, tbUsertoUser(tbUser))
 }
