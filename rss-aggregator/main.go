@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/dnieln7/go-examples/rss-aggregator/internal/database"
 	"github.com/go-chi/chi/v5"
@@ -23,8 +24,8 @@ func main() {
 		log.Fatal("PORT not found")
 	}
 
-	apiConfig := setUpDatabase()
-	router := setUpRouter()
+	apiConfig := setupDatabase()
+	router := setupRouter()
 
 	router.Get("/timestamp", getTimestamp)
 	router.Post("/users", apiConfig.postUser)
@@ -35,12 +36,14 @@ func main() {
 	router.Get("/feeds/follows", apiConfig.middlewareAuth(apiConfig.getFeedFollows))
 	router.Delete("/feeds/follows/{feedFollowID}", apiConfig.middlewareAuth(apiConfig.deleteFeedFollow))
 
+	setupWorkers(apiConfig.DB)
+
 	log.Println("Starting server on port: ", port)
 	
 	http.ListenAndServe(":"+port, router)
 }
 
-func setUpDatabase() *ApiConfig {
+func setupDatabase() *ApiConfig {
 	dbUrl := os.Getenv("DB_URL")
 
 	if dbUrl == "" {
@@ -60,7 +63,7 @@ func setUpDatabase() *ApiConfig {
 	}
 }
 
-func setUpRouter() *chi.Mux {
+func setupRouter() *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(cors.Handler(cors.Options{
@@ -77,4 +80,8 @@ func setUpRouter() *chi.Mux {
 
 type ApiConfig struct {
 	DB *database.Queries
+}
+
+func setupWorkers(database *database.Queries)  {
+	go startScraping(database, 2, time.Minute)
 }

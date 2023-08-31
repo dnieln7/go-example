@@ -18,7 +18,7 @@ INSERT INTO tb_feeds
 (id, created_at, updated_at, name, url, user_id) 
 VALUES 
 ($1, $2, $3, $4, $5, $6) 
-RETURNING id, name, url, user_id, created_at, updated_at
+RETURNING id, name, url, user_id, created_at, updated_at, last_fetched_at
 `
 
 type CreateFeedParams struct {
@@ -47,12 +47,13 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (TbFeed,
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastFetchedAt,
 	)
 	return i, err
 }
 
 const getFeeds = `-- name: GetFeeds :many
-SELECT id, name, url, user_id, created_at, updated_at FROM tb_feeds
+SELECT id, name, url, user_id, created_at, updated_at, last_fetched_at FROM tb_feeds
 `
 
 func (q *Queries) GetFeeds(ctx context.Context) ([]TbFeed, error) {
@@ -71,6 +72,7 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]TbFeed, error) {
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LastFetchedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -83,4 +85,58 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]TbFeed, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getNextFeedsToFech = `-- name: GetNextFeedsToFech :many
+SELECT id, name, url, user_id, created_at, updated_at, last_fetched_at FROM tb_feeds ORDER BY last_fetched_at ASC NULLS FIRST LIMIT $1
+`
+
+func (q *Queries) GetNextFeedsToFech(ctx context.Context, limit int32) ([]TbFeed, error) {
+	rows, err := q.db.QueryContext(ctx, getNextFeedsToFech, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TbFeed
+	for rows.Next() {
+		var i TbFeed
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Url,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastFetchedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markFeedAsFetched = `-- name: MarkFeedAsFetched :one
+UPDATE tb_feeds SET last_fetched_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING id, name, url, user_id, created_at, updated_at, last_fetched_at
+`
+
+func (q *Queries) MarkFeedAsFetched(ctx context.Context, id uuid.UUID) (TbFeed, error) {
+	row := q.db.QueryRowContext(ctx, markFeedAsFetched, id)
+	var i TbFeed
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Url,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastFetchedAt,
+	)
+	return i, err
 }
