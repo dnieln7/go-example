@@ -59,11 +59,6 @@ func (apiConfig *ApiConfig) postFeed(writer http.ResponseWriter, request *http.R
 		return
 	}
 
-	if body.Name == "" {
-		responseError(writer, 400, "Name is empty")
-		return
-	}
-
 	tbFeed, err := apiConfig.DB.CreateFeed(request.Context(), database.CreateFeedParams{
 		ID: uuid.New(),
 		Name: sql.NullString{

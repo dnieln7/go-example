@@ -31,6 +31,9 @@ func main() {
 	router.Get("/users", apiConfig.middlewareAuth(apiConfig.getUser))
 	router.Post("/feeds", apiConfig.middlewareAuth(apiConfig.postFeed))
 	router.Get("/feeds", apiConfig.getFeeds)
+	router.Post("/feeds/follows", apiConfig.middlewareAuth(apiConfig.postFeedFollow))
+	router.Get("/feeds/follows", apiConfig.middlewareAuth(apiConfig.getFeedFollows))
+	router.Delete("/feeds/follows/{feedFollowID}", apiConfig.middlewareAuth(apiConfig.deleteFeedFollow))
 
 	log.Println("Starting server on port: ", port)
 	

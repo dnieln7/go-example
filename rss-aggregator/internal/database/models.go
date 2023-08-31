@@ -20,6 +20,14 @@ type TbFeed struct {
 	UpdatedAt time.Time
 }
 
+type TbFeedFollow struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	FeedID    uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type TbUser struct {
 	ID        uuid.UUID
 	Name      sql.NullString
