@@ -29,6 +29,17 @@ type TbFeedFollow struct {
 	UpdatedAt time.Time
 }
 
+type TbPost struct {
+	ID          uuid.UUID
+	Title       string
+	Description sql.NullString
+	Url         string
+	PublishedAt time.Time
+	FeedID      uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type TbUser struct {
 	ID        uuid.UUID
 	Name      sql.NullString

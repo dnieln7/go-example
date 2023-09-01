@@ -35,6 +35,7 @@ func main() {
 	router.Post("/feeds/follows", apiConfig.middlewareAuth(apiConfig.postFeedFollow))
 	router.Get("/feeds/follows", apiConfig.middlewareAuth(apiConfig.getFeedFollows))
 	router.Delete("/feeds/follows/{feedFollowID}", apiConfig.middlewareAuth(apiConfig.deleteFeedFollow))
+	router.Get("/posts", apiConfig.middlewareAuth(apiConfig.getPostsByUserID))
 
 	setupWorkers(apiConfig.DB)
 
@@ -82,6 +83,6 @@ type ApiConfig struct {
 	DB *database.Queries
 }
 
-func setupWorkers(database *database.Queries)  {
-	go startScraping(database, 2, time.Minute)
+func setupWorkers(db *database.Queries)  {
+	go startScraping(db, 2, time.Minute)
 }
