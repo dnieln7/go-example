@@ -66,6 +66,7 @@ func scrapeFeed(waitGroup *sync.WaitGroup, db *database.Queries, tbFeed database
 			description.Valid = true
 		}
 
+		// TODO: Some RSS feeds have different formats
 		publishedAt, err := time.Parse(time.RFC1123Z, rssItem.PubDate)
 
 		if err != nil {
