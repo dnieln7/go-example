@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -31,7 +32,9 @@ func main() {
 			if err != nil {
 				log.Println("Error reading message:", err)
 			} else {
-				log.Println("Message:", message, " with type: ", messageType)
+				messageText := fmt.Sprintf("%s", message)
+
+				log.Println("Message:", messageText, " with type: ", messageType)
 			}
 
 		}

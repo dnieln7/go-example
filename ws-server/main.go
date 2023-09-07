@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -12,46 +13,65 @@ var connections []*websocket.Conn
 
 func main() {
 	incomingMessages := make(chan []byte)
-	incomingConnections := make(chan *websocket.Conn)
+	connectionUpdates := make(chan ConnectionUpdate)
 
 	go func() {
 		for {
 			select {
 			case newMessage := <-incomingMessages:
 				broadcastMessage(newMessage, connections)
-			case newConnection := <-incomingConnections:
-				connections = append(connections, newConnection)
+			case connectionUpdate := <-connectionUpdates:
+				if connectionUpdate.append {
+					connections = append(connections, connectionUpdate.connection)
+				} else {
+					removeConnection(connectionUpdate.connection)
+				}
 			}
-
 		}
 	}()
 
-	// http.HandleFunc("/server", func(writer http.ResponseWriter, request *http.Request) {
-	// 	connection, err := upgrader.Upgrade(writer, request, nil)
+	http.HandleFunc("/server", func(writer http.ResponseWriter, request *http.Request) {
+		connection, err := upgrader.Upgrade(writer, request, nil)
 
-	// 	if err != nil {
-	// 		log.Fatal("Upgrade error: ", err)
-	// 	}
+		if err != nil {
+			log.Fatal("Upgrade error: ", err)
+		}
 
-	// 	incomingConnections <- connection
+		connectionUpdates <- ConnectionUpdate{
+			connection: connection,
+			append:     true,
+		}
 
-	// 	for {
-	// 		messageType, message, err := connection.ReadMessage()
+		for {
+			messageType, message, err := connection.ReadMessage()
 
-	// 		if err != nil {
-	// 			log.Println("Error reading message: ", err)
-	// 			continue
-	// 		}
+			if err != nil {
+				closeErr, ok := err.(*websocket.CloseError)
 
-	// 		connection.WriteMessage()
+				if ok {
+					log.Println("Close frame received, clossing...", closeErr)
 
-	// 		log.Println("Message received: ", message, " with type: ", messageType)
+					connectionUpdates <- ConnectionUpdate{
+						connection: connection,
+						append:     false,
+					}
 
-	// 		incomingMessages <- message
-	// 	}
-	// })
+					break
+				} else {
+					log.Println("Error reading message: ", err)
+					continue
+				}
+			}
 
-	http.HandleFunc("/server", serverHanlder)
+			messageText := fmt.Sprintf("%s", message)
+
+			log.Println("Message received: ", messageText, " with type: ", messageType)
+
+			incomingMessages <- message
+		}
+	})
+
+	// http.HandleFunc("/server", serverHanlder)
 
 	log.Println("Starting server...")
 	err := http.ListenAndServe(":4444", nil)
@@ -75,9 +95,43 @@ func broadcastMessage(message []byte, connections []*websocket.Conn) {
 		if err != nil {
 			log.Println("Error writing message:", err)
 		} else {
-			log.Println("Message sent: ", message)
+			messageText := fmt.Sprintf("%s", message)
+
+			log.Println("Message sent: ", messageText)
 		}
 	}
+}
+
+func removeConnection(connection *websocket.Conn) {
+	var index = -1
+	var last = len(connections) - 1
+
+	if last == 0 {
+		log.Println("Cleaning connections... ")
+
+		connections = []*websocket.Conn{}
+	} else {
+		for i, conn := range connections {
+			if conn == connection {
+				index = i
+				break
+			}
+		}
+
+		log.Println("Removing connection... ", connection.LocalAddr(), " at index: ", index)
+
+		if index != -1 {
+			if index != last {
+				connections[index] = connections[last]
+			}
+
+			connections = connections[:last]
+		}
+
+		log.Println("Connection removed, remaining connections: ", len(connections))
+	}
+
+	connection.Close()
 }
 
 func serverHanlder(writer http.ResponseWriter, request *http.Request) {
@@ -104,7 +158,9 @@ func serverHanlder(writer http.ResponseWriter, request *http.Request) {
 			}
 		}
 
-		log.Println("Message received: ", message, " with type: ", messageType)
+		messageText := fmt.Sprintf("%s", message)
+
+		log.Println("Message received: ", messageText, " with type: ", messageType)
 
 		// Reverse
 		messageLen := len(message)
