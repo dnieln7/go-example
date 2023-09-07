@@ -30,46 +30,7 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/server", func(writer http.ResponseWriter, request *http.Request) {
-		connection, err := upgrader.Upgrade(writer, request, nil)
-
-		if err != nil {
-			log.Fatal("Upgrade error: ", err)
-		}
-
-		connectionUpdates <- ConnectionUpdate{
-			connection: connection,
-			append:     true,
-		}
-
-		for {
-			messageType, message, err := connection.ReadMessage()
-
-			if err != nil {
-				closeErr, ok := err.(*websocket.CloseError)
-
-				if ok {
-					log.Println("Close frame received, clossing...", closeErr)
-
-					connectionUpdates <- ConnectionUpdate{
-						connection: connection,
-						append:     false,
-					}
-
-					break
-				} else {
-					log.Println("Error reading message: ", err)
-					continue
-				}
-			}
-
-			messageText := fmt.Sprintf("%s", message)
-
-			log.Println("Message received: ", messageText, " with type: ", messageType)
-
-			incomingMessages <- message
-		}
-	})
+	http.HandleFunc("/server", broadcastServerHanlder(connectionUpdates, incomingMessages))
 
 	// http.HandleFunc("/server", serverHanlder)
 
@@ -78,6 +39,94 @@ func main() {
 
 	if err != nil {
 		log.Fatal("Could not start server", err)
+	}
+}
+
+func serverHanlder(writer http.ResponseWriter, request *http.Request) {
+	connection, err := upgrader.Upgrade(writer, request, nil)
+
+	if err != nil {
+		log.Fatal("Upgrade error: ", err)
+	}
+
+	defer connection.Close()
+
+	for {
+		messageType, message, err := connection.ReadMessage()
+
+		if err != nil {
+			closeErr, ok := err.(*websocket.CloseError)
+
+			if ok {
+				log.Println("Close frame received, clossing...", closeErr)
+				break
+			} else {
+				log.Println("Error reading message: ", err)
+				continue
+			}
+		}
+
+		messageText := fmt.Sprintf("%s", message)
+
+		log.Println("Message received: ", messageText, " with type: ", messageType)
+
+		// Reverse
+		messageLen := len(message)
+
+		for i := 0; i < messageLen/2; i++ {
+			message[i], message[messageLen-1-i] = message[messageLen-1-i], message[i]
+		}
+
+		err = connection.WriteMessage(messageType, message)
+
+		if err != nil {
+			log.Println("Error writing message:", err)
+		} else {
+			log.Println("Message sent: ", message)
+		}
+	}
+}
+
+func broadcastServerHanlder(connectionUpdates chan ConnectionUpdate, incomingMessages chan []byte) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request,) {
+		connection, err := upgrader.Upgrade(writer, request, nil)
+
+		if err != nil {
+			log.Fatal("Upgrade error: ", err)
+		}
+	
+		connectionUpdates <- ConnectionUpdate{
+			connection: connection,
+			append:     true,
+		}
+	
+		for {
+			messageType, message, err := connection.ReadMessage()
+	
+			if err != nil {
+				closeErr, ok := err.(*websocket.CloseError)
+	
+				if ok {
+					log.Println("Close frame received, clossing...", closeErr)
+	
+					connectionUpdates <- ConnectionUpdate{
+						connection: connection,
+						append:     false,
+					}
+	
+					break
+				} else {
+					log.Println("Error reading message: ", err)
+					continue
+				}
+			}
+	
+			messageText := fmt.Sprintf("%s", message)
+	
+			log.Println("Message received: ", messageText, " with type: ", messageType)
+	
+			incomingMessages <- message
+		}
 	}
 }
 
@@ -132,49 +181,4 @@ func removeConnection(connection *websocket.Conn) {
 	}
 
 	connection.Close()
-}
-
-func serverHanlder(writer http.ResponseWriter, request *http.Request) {
-	connection, err := upgrader.Upgrade(writer, request, nil)
-
-	if err != nil {
-		log.Fatal("Upgrade error: ", err)
-	}
-
-	defer connection.Close()
-
-	for {
-		messageType, message, err := connection.ReadMessage()
-
-		if err != nil {
-			closeErr, ok := err.(*websocket.CloseError)
-
-			if ok {
-				log.Println("Close frame received, clossing...", closeErr)
-				break
-			} else {
-				log.Println("Error reading message: ", err)
-				continue
-			}
-		}
-
-		messageText := fmt.Sprintf("%s", message)
-
-		log.Println("Message received: ", messageText, " with type: ", messageType)
-
-		// Reverse
-		messageLen := len(message)
-
-		for i := 0; i < messageLen/2; i++ {
-			message[i], message[messageLen-1-i] = message[messageLen-1-i], message[i]
-		}
-
-		err = connection.WriteMessage(messageType, message)
-
-		if err != nil {
-			log.Println("Error writing message:", err)
-		} else {
-			log.Println("Message sent: ", message)
-		}
-	}
 }
