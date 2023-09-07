@@ -1,2 +1,4 @@
 /rss-aggregator/.env
 /rss-aggregator/rss-aggregator
+/ws-server/ws-server
+/ws-client/ws-client
