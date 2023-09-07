@@ -26,32 +26,32 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/server", func(writer http.ResponseWriter, request *http.Request) {
-		connection, err := upgrader.Upgrade(writer, request, nil)
+	// http.HandleFunc("/server", func(writer http.ResponseWriter, request *http.Request) {
+	// 	connection, err := upgrader.Upgrade(writer, request, nil)
 
-		if err != nil {
-			log.Fatal("Upgrade error: ", err)
-		}
+	// 	if err != nil {
+	// 		log.Fatal("Upgrade error: ", err)
+	// 	}
 
-		incomingConnections <- connection
+	// 	incomingConnections <- connection
 
-		for {
-			messageType, message, err := connection.ReadMessage()
+	// 	for {
+	// 		messageType, message, err := connection.ReadMessage()
 
-			if err != nil {
-				log.Println("Error reading message: ", err)
-				continue
-			}
+	// 		if err != nil {
+	// 			log.Println("Error reading message: ", err)
+	// 			continue
+	// 		}
 
-			connection.WriteMessage()
+	// 		connection.WriteMessage()
 
-			log.Println("Message received: ", message, " with type: ", messageType)
+	// 		log.Println("Message received: ", message, " with type: ", messageType)
 
-			incomingMessages <- message
-		}
-	})
+	// 		incomingMessages <- message
+	// 	}
+	// })
 
-	// http.HandleFunc("/server", serverHanlder)
+	http.HandleFunc("/server", serverHanlder)
 
 	log.Println("Starting server...")
 	err := http.ListenAndServe(":4444", nil)
@@ -93,8 +93,15 @@ func serverHanlder(writer http.ResponseWriter, request *http.Request) {
 		messageType, message, err := connection.ReadMessage()
 
 		if err != nil {
-			log.Println("Error reading message: ", err)
-			continue
+			closeErr, ok := err.(*websocket.CloseError)
+
+			if ok {
+				log.Println("Close frame received, clossing...", closeErr)
+				break
+			} else {
+				log.Println("Error reading message: ", err)
+				continue
+			}
 		}
 
 		log.Println("Message received: ", message, " with type: ", messageType)
