@@ -4,4 +4,5 @@ use (
 	./rss-aggregator
 	./ws-server
 	./ws-client
+	./http-client
 )
