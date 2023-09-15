@@ -1,3 +1,3 @@
 # Go Examples
 
-Repository for learning go with small projects 
+Repository of small Go projects for learning purposes
